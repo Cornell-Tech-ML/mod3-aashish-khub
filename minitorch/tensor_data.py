@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from re import M
 from typing import Iterable, Optional, Sequence, Tuple, Union
 
 import numba
@@ -48,7 +49,9 @@ def index_to_position(index: Index, strides: Strides) -> int:
     """
     if len(index) != len(strides):
         raise IndexingError(f"Index {index} must be size of Strides {strides}.")
-    position = int(np.dot(index, strides))
+    position = 0
+    for i, s in zip(index, strides):
+        position += i * s
     return position
 
 

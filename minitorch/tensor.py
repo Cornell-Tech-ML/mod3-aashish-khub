@@ -386,25 +386,19 @@ class Tensor:
 
     # Should take an optional dim argument:
     # sum
-    def sum(self, dim: Tensor | int | None = None) -> Tensor:
+    def sum(self, dim: Optional[int] = None) -> Tensor:
         """Sum the tensor over a dimension."""
-        if dim is not None:
-            dim = self._ensure_tensor(dim)
-        else:
-            dim = tensor(-1, backend=self.backend)
-        return Sum.apply(self, dim)
-
-    def mean(self, dim: Tensor | int | None = None) -> Tensor:
-        """Mean the tensor over a dimension."""
         if dim is None:
-            count = self.size
-            dim = tensor(-1, backend=self.backend)
+            return Sum.apply(self.contiguous().view(self.size), self._ensure_tensor(0))
         else:
-            count = (
-                self.shape[dim] if isinstance(dim, int) else self.shape[int(dim.item())]
-            )
-            dim = self._ensure_tensor(dim)
-        return Sum.apply(self, dim) / count
+            return Sum.apply(self, self._ensure_tensor(dim))
+
+    def mean(self, dim: Optional[int] = None) -> Tensor:
+        """Mean the tensor over a dimension."""
+        if dim is not None:
+            return self.sum(dim) / self.shape[dim]
+        else:
+            return self.sum() / self.size
 
     def permute(self, *order: int) -> Tensor:
         """Permute the dimensions of the tensor."""
@@ -418,6 +412,3 @@ class Tensor:
         """Zero out the gradient."""
         if self.grad is not None:
             self.grad = None
-
-    # Functions
-    # TODO: Implement for Task 2.3.

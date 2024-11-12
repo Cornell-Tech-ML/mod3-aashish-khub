@@ -131,21 +131,15 @@ class Sigmoid(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
         """Forward pass for the Sigmoid function."""
-        ctx.save_for_backward(t1)
-        return t1.f.sigmoid_map(t1)
+        out = t1.f.sigmoid_map(t1)
+        ctx.save_for_backward(out)
+        return out
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         """Backward pass for the Sigmoid function."""
-        (t1,) = ctx.saved_values
-        sig = t1.f.sigmoid_map(t1)
-        neg_sig = t1.f.neg_map(sig)
-        one_minus_neg_sig = grad_output.f.add_zip(
-            tensor(1.0, backend=grad_output.backend), neg_sig
-        )
-        return grad_output.f.mul_zip(
-            grad_output, grad_output.f.mul_zip(sig, one_minus_neg_sig)
-        )
+        (sigma,) = ctx.saved_values
+        return sigma * (-sigma + 1.0) * grad_output
 
 
 class ReLU(Function):
@@ -180,28 +174,27 @@ class Exp(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
         """Forward pass for the Exp function."""
-        ctx.save_for_backward(t1)
-        return t1.f.exp_map(t1)
+        out = t1.f.exp_map(t1)
+        ctx.save_for_backward(out)
+        return out
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         """Backward pass for the Exp function."""
-        (t1,) = ctx.saved_values
-        return grad_output.f.mul_zip(t1.f.exp_map(t1), grad_output)
-
+        (out,) = ctx.saved_values
+        return grad_output.f.mul_zip(out, grad_output)
 
 class Sum(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
         """Sum function"""
-        if dim.item() == -1:
-            return a.f.add_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
-        else:
-            return a.f.add_reduce(a, int(dim.item()))
+        # ctx.save_for_backward(a.shape, dim)
+        return a.f.add_reduce(a, int(dim.item()))
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Backward pass for the Sum function."""
+        # shape, dim = ctx.saved_values
         return grad_output, 0.0
 
 
@@ -216,7 +209,7 @@ class LT(Function):
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         """Backward pass for the less than function"""
         t1_shape, t2_shape = ctx.saved_values
-        return grad_output.zeros(t1_shape), grad_output.zeros(t2_shape)
+        return zeros(t1_shape), zeros(t2_shape)
 
 
 class EQ(Function):
@@ -230,7 +223,7 @@ class EQ(Function):
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         """Backward pass for the equal to function"""
         t1_shape, t2_shape = ctx.saved_values
-        return grad_output.zeros(t1_shape), grad_output.zeros(t2_shape)
+        return zeros(t1_shape), zeros(t2_shape)
 
 
 class IsClose(Function):
@@ -246,21 +239,17 @@ class Permute(Function):
     @staticmethod
     def forward(ctx: Context, t: Tensor, order: Tensor) -> Tensor:
         """Forward pass for Permute function"""
-        order_non_annoying_type = list(order.to_numpy())
-        permutation_order = [0] * len(order_non_annoying_type)  # initialize with zeros
-        permute_int = []
-        for i, v in enumerate(order_non_annoying_type):
-            permutation_order[int(v)] = i
-            permute_int.append(int(v))
-        ctx.save_for_backward(permutation_order)
-        return t._new(t._tensor.permute(*permute_int))
+        ctx.save_for_backward(order)
+        return t._new(t._tensor.permute(*[int(order[i]) for i in range(order.size)]))
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Backward pass for Permute function"""
-        (permutation_order,) = ctx.saved_values
-        # swap em back
-        return grad_output._new(grad_output._tensor.permute(*permutation_order)), 0.0
+        (ordo,) = ctx.saved_values
+        novus_ordo = [ a[0] for a in sorted(
+            enumerate([ordo[i] for i in range(ordo.size)]), key=lambda x: x[1])
+        ]
+        return grad_output._new(grad_output._tensor.permute(*novus_ordo)), 0.0
 
 
 class View(Function):
