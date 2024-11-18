@@ -48,7 +48,7 @@ def index_to_position(index: Index, strides: Strides) -> int:
 
     """
     if len(index) != len(strides):
-        raise IndexingError(f"Index {index} must be size of Strides {strides}.")
+        raise IndexingError("Index", index, "must be size of Strides", strides, ".")
     position = 0
     for i, s in zip(index, strides):
         position += i * s
@@ -68,7 +68,7 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
         out_index : return index corresponding to position.
 
     """
-    for i in reversed(range(len(shape))):  # iterate backwards
+    for i in range(len(shape) - 1, -1, -1):  # iterate backwards
         out_index[i] = ordinal % shape[i]
         ordinal = ordinal // shape[i]
 
@@ -126,7 +126,7 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
 
     for i, j in zip(shape1, shape2):
         if i != j and i != 1 and j != 1:
-            raise IndexingError(f"Shapes {shape1} and {shape2} are not broadcastable.")
+            raise IndexingError("Shapes", shape1, "and", shape2, "are not broadcastable.")
         broadcasted_shape.append(max(i, j))
 
     return tuple(broadcasted_shape)
@@ -167,7 +167,7 @@ class TensorData:
         assert isinstance(strides, tuple), "Strides must be tuple"
         assert isinstance(shape, tuple), "Shape must be tuple"
         if len(strides) != len(shape):
-            raise IndexingError(f"Len of strides {strides} must match {shape}.")
+            raise IndexingError("Len of strides", strides, "must match", shape, ".")
         self._strides = array(strides)
         self._shape = array(shape)
         self.strides = strides
@@ -215,12 +215,12 @@ class TensorData:
 
         # Check for errors
         if aindex.shape[0] != len(self.shape):
-            raise IndexingError(f"Index {aindex} must be size of {self.shape}.")
+            raise IndexingError("Index", aindex, "must be size of", self.shape, ".")
         for i, ind in enumerate(aindex):
             if ind >= self.shape[i]:
-                raise IndexingError(f"Index {aindex} out of range {self.shape}.")
+                raise IndexingError("Index", aindex, "out of range", self.shape, ".")
             if ind < 0:
-                raise IndexingError(f"Negative indexing for {aindex} not supported.")
+                raise IndexingError("Negative indexing for", aindex, "not supported.")
 
         # Call fast indexing.
         return index_to_position(array(index), self._strides)
@@ -264,7 +264,7 @@ class TensorData:
         """
         assert list(sorted(order)) == list(
             range(len(self.shape))
-        ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
+        ), "Must give a position to each dimension. Shape: " + str(self.shape) + " Order: " + str(order)
         new_shape = tuple(self.shape[i] for i in order)
         new_strides = tuple(self.strides[i] for i in order)
         return TensorData(self._storage, new_shape, new_strides)
@@ -281,7 +281,7 @@ class TensorData:
                     break
             s += l
             v = self.get(index)
-            s += f"{v:3.2f}"
+            s += "{:3.2f}".format(v)
             l = ""
             for i in range(len(index) - 1, -1, -1):
                 if index[i] == self.shape[i] - 1:

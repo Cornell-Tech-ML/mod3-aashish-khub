@@ -38,7 +38,7 @@ def lt(x: float, y: float) -> float:
 
 def eq(x: float, y: float) -> float:
     """Checks if two numbers are equal"""
-    return float(x == y)
+    return 1.0 if x == y else 0.0
 
 
 def max(x: float, y: float) -> float:
