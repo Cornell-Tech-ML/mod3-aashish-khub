@@ -47,8 +47,9 @@ def index_to_position(index: Index, strides: Strides) -> int:
         Position in storage
 
     """
-    if len(index) != len(strides):
-        raise IndexingError("Index", index, "must be size of Strides", strides, ".")
+    # cuz numba is fucking stupid and whiny and does not like this check
+    # if len(index) != len(strides):
+    #     raise IndexingError("Index", index, "must be size of Strides", strides, ".")
     position = 0
     for i, s in zip(index, strides):
         position += i * s
@@ -68,6 +69,7 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
         out_index : return index corresponding to position.
 
     """
+    ordinal = int(ordinal) #what the fuck do i need to do this for i hate numba so much 
     for i in range(len(shape) - 1, -1, -1):  # iterate backwards
         out_index[i] = ordinal % shape[i]
         ordinal = ordinal // shape[i]
