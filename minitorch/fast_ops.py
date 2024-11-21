@@ -300,7 +300,6 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-
         for i in prange(len(out)):
             out_index = np.zeros_like(out_shape)
             to_index(i, out_shape, out_index)
@@ -310,7 +309,7 @@ def tensor_reduce(
                 a_index = out_index[:]
                 a_index[reduce_dim] = j
                 a_value = a_storage[index_to_position(a_index, a_strides)]
-                out[out_position] = fn(a_value, out[out_position]) #this really shouldn't be here but whatevs
+                out[out_position] = fn(a_value, out[out_position])
 
     return njit(_reduce, parallel=True)  # type: ignore
 

@@ -3,9 +3,12 @@ import random
 import numba
 
 import minitorch
-
+import time 
 datasets = minitorch.datasets
 FastTensorBackend = minitorch.TensorBackend(minitorch.FastOps)
+
+MAX_EPOCHS_DEFAULT = 500
+
 if numba.cuda.is_available():
     GPUBackend = minitorch.TensorBackend(minitorch.CudaOps)
 
@@ -29,8 +32,10 @@ class Network(minitorch.Module):
         self.layer3 = Linear(hidden, 1, backend)
 
     def forward(self, x):
-        # TODO: Implement for Task 3.5.
-        raise NotImplementedError("Need to implement for Task 3.5")
+        primus = self.layer1.forward(x).relu()
+        secundus = self.layer2(primus).relu()
+        tertius = self.layer3(secundus).sigmoid()
+        return tertius
 
 
 class Linear(minitorch.Module):
@@ -43,8 +48,8 @@ class Linear(minitorch.Module):
         self.out_size = out_size
 
     def forward(self, x):
-        # TODO: Implement for Task 3.5.
-        raise NotImplementedError("Need to implement for Task 3.5")
+        y = x @ self.weights.value + self.bias.value
+        return y
 
 
 class FastTrain:
@@ -59,7 +64,7 @@ class FastTrain:
     def run_many(self, X):
         return self.model.forward(minitorch.tensor(X, backend=self.backend))
 
-    def train(self, data, learning_rate, max_epochs=500, log_fn=default_log_fn):
+    def train(self, data, learning_rate, max_epochs=MAX_EPOCHS_DEFAULT, log_fn=default_log_fn):
         self.model = Network(self.hidden_layers, self.backend)
         optim = minitorch.SGD(self.model.parameters(), learning_rate)
         BATCH = 10
@@ -108,7 +113,7 @@ if __name__ == "__main__":
     parser.add_argument("--BACKEND", default="cpu", help="backend mode")
     parser.add_argument("--DATASET", default="simple", help="dataset")
     parser.add_argument("--PLOT", default=False, help="dataset")
-
+    parser.add_argument("--EPOCHS", type=int, default=MAX_EPOCHS_DEFAULT, help="max number of epochs")
     args = parser.parse_args()
 
     PTS = args.PTS
@@ -122,7 +127,28 @@ if __name__ == "__main__":
 
     HIDDEN = int(args.HIDDEN)
     RATE = args.RATE
-
+    time_init = time.time()
     FastTrain(
         HIDDEN, backend=FastTensorBackend if args.BACKEND != "gpu" else GPUBackend
-    ).train(data, RATE)
+    ).train(data, RATE, max_epochs=args.EPOCHS)
+    time_final = time.time()
+    time_taken = time_final - time_init
+    time_per_epoch = time_taken / args.EPOCHS
+    print("=======================================")
+    #backend and dataset
+    print(f"### Backend: {args.BACKEND.upper()} & Dataset: {args.DATASET.upper()}")
+    print("### Hyperparameters & Time per epoch")
+    # print("Backend:", args.BACKEND.capitalize(),end="\n\n")
+    print("Size of Hidden Layer:", HIDDEN,end="\n\n")
+    print(f"Learning Rate:", round(RATE, 3),end="\n\n")
+    print(f"Number of Epochs:", args.EPOCHS,end="\n\n")
+    print(f"Time taken: {time_taken:.2f} seconds",end="\n\n")
+    print(f"Time per epoch: {time_per_epoch:.2f} seconds",end="\n\n")
+    print("### Logs")
+    print("```markdown")
+    print()
+    print("```")
+    print("=======================================")
+
+
+
