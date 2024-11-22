@@ -288,7 +288,8 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
         cache[pos] = 0.0
     cuda.syncthreads()
     #reduce in shared memory
-    for stride in range(BLOCK_DIM // 2, 0, -stride // 2):
+    stride = BLOCK_DIM // 2
+    while stride > 0:
         if pos % (2 * stride) == 0: 
             cache[pos] += cache[pos + stride]
         cuda.syncthreads()
