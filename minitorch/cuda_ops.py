@@ -409,27 +409,32 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     BLOCK_DIM = 32
     a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
     b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
-    i = cuda.threadIdx.x
-    j = cuda.threadIdx.y
-    out_i = cuda.blockIdx.x * BLOCK_DIM + i
-    out_j = cuda.blockIdx.y * BLOCK_DIM + j
+    thread_x = cuda.threadIdx.x
+    thread_y = cuda.threadIdx.y
+    out_row = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
+    out_col = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
+
     summa = 0.0
+
     for t in range((size + BLOCK_DIM - 1) // BLOCK_DIM):
-        if out_j < size and (t * BLOCK_DIM + i) < size:
-            a_shared[j, i] = a[out_j * size + (t * BLOCK_DIM + i)]
+        if out_row < size and t * BLOCK_DIM + thread_x < size:
+            a_shared[thread_y, thread_x] = a[out_row * size + t * BLOCK_DIM + thread_x]
         else:
-            a_shared[j, i] = 0.0
-        if out_i < size and (t * BLOCK_DIM + j) < size:
-            b_shared[j, i] = b[(t * BLOCK_DIM + j) * size + out_i]
+            a_shared[thread_y, thread_x] = 0.0  # Load 0 if out of bounds
+
+        if out_col < size and t * BLOCK_DIM + thread_y < size:
+            b_shared[thread_y, thread_x] = b[(t * BLOCK_DIM + thread_y) * size + out_col]
         else:
-            b_shared[j, i] = 0.0
+            b_shared[thread_y, thread_x] = 0.0 
+
         cuda.syncthreads()
         for k in range(BLOCK_DIM):
-            summa += a_shared[j, k] * b_shared[k, i]
+            summa += a_shared[thread_y, k] * b_shared[k, thread_x]
+        #wait for all threads in the block to finish computing the sum
         cuda.syncthreads()
-
-    if out_i < size and out_j < size:
-        out[out_j * size + out_i] = summa
+    #PLEASE WORK THIS TIME PLEASE I BEG YOU
+    if out_row < size and out_col < size:
+        out[out_row * size + out_col] = summa
 
 
 jit_mm_practice = jit(_mm_practice)
@@ -502,34 +507,33 @@ def _tensor_matrix_multiply(
     thread_i = cuda.threadIdx.x
     thread_j = cuda.threadIdx.y
 
-    if i < out_shape[-2] and j < out_shape[-1]:
-        summa = 0.0
-        tile_count = (iter_dim_length + BLOCK_DIM - 1) // BLOCK_DIM # number of tiles needed to span the entire row of a and col of b
-        for t in range(tile_count):
-            if (thread_i < a_shape[-2]) and ((t * BLOCK_DIM + thread_j) < a_shape[-1]): #make sure we are in bounds for a's shape
-                a_shared[thread_i, thread_j] = a_storage[
-                    batch * a_batch_stride + #batch dimension's contribution to position 
-                    i     * a_strides[-2] + #row dimension's contribution to position
-                    t     * a_strides[-1] #col dimension's contribution to position
-                ]
-            else:
-                a_shared[thread_i, thread_j] = 0.0 #pad with 0s if out of bounds
-            if (thread_i < b_shape[-2]) and ((t * BLOCK_DIM + thread_j) < b_shape[-1]): #make sure we are in bounds for b's shape
-                b_shared[thread_i, thread_j] = b_storage[
-                    batch * b_batch_stride + #batch dimension's contribution to position
-                    t     * b_strides[-2] + #row dimension's contribution to position
-                    j     * b_strides[-1] #col dimension's contribution to position
-                ]
-            else:
-                b_shared[thread_i, thread_j] = 0.0 #pad with 0s if out of bounds
-            cuda.syncthreads() #wait for all threads in the block to finish copying data to shared memory
-            
-            for k in range(BLOCK_DIM): #iterate over the shared memory to compute the sum
-                summa += a_shared[thread_i, k] * b_shared[k, thread_j]
-            cuda.syncthreads() #wait for all threads in the block to finish computing the sum
+    summa = 0.0
+    tile_count = (iter_dim_length + BLOCK_DIM - 1) // BLOCK_DIM # number of tiles needed to span the entire row of a and col of b
+    for t in range(tile_count):
+        if (thread_i < a_shape[-2]) and ((t * BLOCK_DIM + thread_j) < a_shape[-1]): #make sure we are in bounds for a's shape
+            a_shared[thread_i, thread_j] = a_storage[
+                batch * a_batch_stride + #batch dimension's contribution to position 
+                i     * a_strides[-2] + #row dimension's contribution to position
+                t     * a_strides[-1] #col dimension's contribution to position
+            ]
+        else:
+            a_shared[thread_i, thread_j] = 0.0 #pad with 0s if out of bounds
+        if (thread_i < b_shape[-2]) and ((t * BLOCK_DIM + thread_j) < b_shape[-1]): #make sure we are in bounds for b's shape
+            b_shared[thread_i, thread_j] = b_storage[
+                batch * b_batch_stride + #batch dimension's contribution to position
+                t     * b_strides[-2] + #row dimension's contribution to position
+                j     * b_strides[-1] #col dimension's contribution to position
+            ]
+        else:
+            b_shared[thread_i, thread_j] = 0.0 #pad with 0s if out of bounds
+        cuda.syncthreads() #wait for all threads in the block to finish copying data to shared memory
         
-        if i < out_shape[-2] and j < out_shape[-1]: # check if we are in bounds for out
-            out_position = batch * out_strides[0] +i * out_strides[-2] + j * out_strides[-1] #since we wish to write to (batch, i, j) position in out
-            out[out_position] = summa
+        for k in range(BLOCK_DIM): #iterate over the shared memory to compute the sum
+            summa += a_shared[thread_i, k] * b_shared[k, thread_j]
+        cuda.syncthreads() #wait for all threads in the block to finish computing the sum
+    
+    if i < out_shape[-2] and j < out_shape[-1]: # check if we are in bounds for out
+        out_position = batch * out_strides[0] +i * out_strides[-2] + j * out_strides[-1] #since we wish to write to (batch, i, j) position in out
+        out[out_position] = summa
     
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
