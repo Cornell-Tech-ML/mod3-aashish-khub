@@ -288,7 +288,7 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
         cache[pos] = 0.0
     cuda.syncthreads()
     #reduce in shared memory
-    for stride in range(1, BLOCK_DIM):
+    for stride in range(BLOCK_DIM // 2, 0, -stride // 2):
         if pos % (2 * stride) == 0: 
             cache[pos] += cache[pos + stride]
         cuda.syncthreads()
@@ -358,11 +358,15 @@ def tensor_reduce(
                 cache[pos] = a_storage[read_from]
             else:
                 cache[pos] = reduce_value
-            cuda.syncthreads()
-            for stride in range(1, BLOCK_DIM):
-                if pos % (2 * stride) == 0:
-                    cache[pos] = fn(cache[pos], cache[pos + stride])
+            cuda.syncthreads() #wait for all threads in the block to finish copying data to shared memory
+            #reduce in parallel in shared memory
+            stride = BLOCK_DIM // 2 #combine pos & pos + 512, then pos & pos + 256, then pos & pos + 128, etc.
+            while stride > 0:
+                if pos < stride: #only threads with pos < stride will participate in the reduction
+                    cache[pos] = fn(cache[pos], cache[pos + stride]) #reduce the values at pos and pos + stride and store the result in pos
+                stride //= 2 #halve the stride for the next iteration until we reach 0
                 cuda.syncthreads()
+            # write the result to global memory
             if pos == 0:
                 out[out_position] = cache[0]
 
