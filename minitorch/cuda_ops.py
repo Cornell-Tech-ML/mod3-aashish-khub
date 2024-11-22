@@ -510,7 +510,7 @@ def _tensor_matrix_multiply(
     summa = 0.0
     tile_count = (iter_dim_length + BLOCK_DIM - 1) // BLOCK_DIM # number of tiles needed to span the entire row of a and col of b
     for t in range(tile_count):
-        if (thread_i < a_shape[-2]) and ((t * BLOCK_DIM + thread_j) < a_shape[-1]): #make sure we are in bounds for a's shape
+        if (i < a_shape[-2]) and ((t * BLOCK_DIM + thread_j) < a_shape[-1]): #make sure we are in bounds for a's shape
             a_shared[thread_i, thread_j] = a_storage[
                 batch * a_batch_stride + #batch dimension's contribution to position 
                 i     * a_strides[-2] + #row dimension's contribution to position
@@ -518,7 +518,8 @@ def _tensor_matrix_multiply(
             ]
         else:
             a_shared[thread_i, thread_j] = 0.0 #pad with 0s if out of bounds
-        if (thread_i < b_shape[-2]) and ((t * BLOCK_DIM + thread_j) < b_shape[-1]): #make sure we are in bounds for b's shape
+        
+        if (thread_j < b_shape[-1]) and ((t * BLOCK_DIM + thread_i) < b_shape[-2]): #make sure we are in bounds for b's shape
             b_shared[thread_i, thread_j] = b_storage[
                 batch * b_batch_stride + #batch dimension's contribution to position
                 t     * b_strides[-2] + #row dimension's contribution to position
