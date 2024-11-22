@@ -414,7 +414,7 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
 
     out_i = cuda.blockIdx.x * BLOCK_DIM + i 
     out_j = cuda.blockIdx.y * BLOCK_DIM + j  
-    batch = cuda.blockIdx.z if len(cuda.gridDim) > 2 else 0  #for batch support
+    batch = cuda.blockIdx.z if cuda.gridDim.z > 1 else 0 
 
     if out_i < size and out_j < size:
         a_shared[i, j] = a[ batch*size*size + out_i * size + out_j] #size is a's stride[0]
