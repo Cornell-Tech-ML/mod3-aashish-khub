@@ -412,14 +412,17 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     i = cuda.threadIdx.x
     j = cuda.threadIdx.y
 
-    if i < size and j < size:
-        a_shared[i, j] = a[i * size + j] #size is a's stride[0]
-        b_shared[i, j] = b[i * size + j] #size is b's stride[0]
+    out_i = cuda.blockIdx.x * BLOCK_DIM + i 
+    out_j = cuda.blockIdx.y * BLOCK_DIM + j  
+    
+    if out_i < size and out_j < size:
+        a_shared[i, j] = a[out_i * size + out_j] #size is a's stride[0]
+        b_shared[i, j] = b[out_i * size + out_j] #size is b's stride[0]
     else:
         a_shared[i, j] = 0.0
         b_shared[i, j] = 0.0
     cuda.syncthreads()
-    if i < size and j < size:
+    if out_i < size and out_i < size: #check if we are in bounds for out
         summa = 0.0
         for k in range(size):
             summa += a_shared[i, k] * b_shared[k, j]
