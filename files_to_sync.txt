@@ -17,3 +17,4 @@ minitorch/tensor.py
 minitorch/datasets.py
 minitorch/testing.py
 minitorch/optim.py
+.gitignore

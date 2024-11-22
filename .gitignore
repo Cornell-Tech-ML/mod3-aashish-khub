@@ -130,3 +130,9 @@ dmypy.json
 *.\#*
 data/
 pyodide
+
+# Annoying Mac OS file for storing custom folder settings
+.DS_Store
+
+# Vscode stuff
+.vscode/
