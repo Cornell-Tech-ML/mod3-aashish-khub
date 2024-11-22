@@ -411,23 +411,25 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
     i = cuda.threadIdx.x
     j = cuda.threadIdx.y
-
-    out_i = cuda.blockIdx.x * BLOCK_DIM + i 
-    out_j = cuda.blockIdx.y * BLOCK_DIM + j  
-    batch = cuda.blockIdx.z if cuda.gridDim.z > 1 else 0 
+    out_i = cuda.blockIdx.x * BLOCK_DIM + i
+    out_j = cuda.blockIdx.y * BLOCK_DIM + j
+    summa = 0.0
+    for t in range((size + BLOCK_DIM - 1) // BLOCK_DIM):
+        if out_j < size and (t * BLOCK_DIM + i) < size:
+            a_shared[j, i] = a[out_j * size + (t * BLOCK_DIM + i)]
+        else:
+            a_shared[j, i] = 0.0
+        if out_i < size and (t * BLOCK_DIM + j) < size:
+            b_shared[j, i] = b[(t * BLOCK_DIM + j) * size + out_i]
+        else:
+            b_shared[j, i] = 0.0
+        cuda.syncthreads()
+        for k in range(BLOCK_DIM):
+            summa += a_shared[j, k] * b_shared[k, i]
+        cuda.syncthreads()
 
     if out_i < size and out_j < size:
-        a_shared[i, j] = a[ batch*size*size + out_i * size + out_j] #size is a's stride[0]
-        b_shared[i, j] = b[ batch*size*size + out_i * size + out_j] #size is b's stride[0]
-    else:
-        a_shared[i, j] = 0.0
-        b_shared[i, j] = 0.0
-    cuda.syncthreads()
-    if out_i < size and out_j < size: #check if we are in bounds for out
-        summa = 0.0
-        for k in range(size):
-            summa += a_shared[i, k] * b_shared[k, j]
-        out[i * size + j] = summa
+        out[out_j * size + out_i] = summa
 
 
 jit_mm_practice = jit(_mm_practice)
