@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from re import M
 from typing import Iterable, Optional, Sequence, Tuple, Union
 
 import numba
@@ -69,7 +68,9 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
         out_index : return index corresponding to position.
 
     """
-    ordinal = int(ordinal) #what the fuck do i need to do this for i hate numba so much 
+    ordinal = int(
+        ordinal
+    )  # what the fuck do i need to do this for i hate numba so much
     for i in range(len(shape) - 1, -1, -1):  # iterate backwards
         out_index[i] = ordinal % shape[i]
         ordinal = ordinal // shape[i]
@@ -128,7 +129,9 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
 
     for i, j in zip(shape1, shape2):
         if i != j and i != 1 and j != 1:
-            raise IndexingError("Shapes", shape1, "and", shape2, "are not broadcastable.")
+            raise IndexingError(
+                "Shapes", shape1, "and", shape2, "are not broadcastable."
+            )
         broadcasted_shape.append(max(i, j))
 
     return tuple(broadcasted_shape)
@@ -264,9 +267,12 @@ class TensorData:
             New `TensorData` with the same storage and a new dimension order.
 
         """
-        assert list(sorted(order)) == list(
-            range(len(self.shape))
-        ), "Must give a position to each dimension. Shape: " + str(self.shape) + " Order: " + str(order)
+        assert list(sorted(order)) == list(range(len(self.shape))), (
+            "Must give a position to each dimension. Shape: "
+            + str(self.shape)
+            + " Order: "
+            + str(order)
+        )
         new_shape = tuple(self.shape[i] for i in order)
         new_strides = tuple(self.strides[i] for i in order)
         return TensorData(self._storage, new_shape, new_strides)

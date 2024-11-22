@@ -184,6 +184,7 @@ class Exp(Function):
         (out,) = ctx.saved_values
         return grad_output.f.mul_zip(out, grad_output)
 
+
 class Sum(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
@@ -246,8 +247,11 @@ class Permute(Function):
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Backward pass for Permute function"""
         (ordo,) = ctx.saved_values
-        novus_ordo = [ a[0] for a in sorted(
-            enumerate([ordo[i] for i in range(ordo.size)]), key=lambda x: x[1])
+        novus_ordo = [
+            a[0]
+            for a in sorted(
+                enumerate([ordo[i] for i in range(ordo.size)]), key=lambda x: x[1]
+            )
         ]
         return grad_output._new(grad_output._tensor.permute(*novus_ordo)), 0.0
 

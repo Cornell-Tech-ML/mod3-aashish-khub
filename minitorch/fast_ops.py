@@ -7,7 +7,6 @@ from numba import prange
 from numba import njit as _njit
 
 from .tensor_data import (
-    MAX_DIMS,
     broadcast_index,
     index_to_position,
     shape_broadcast,
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from typing import Callable, Optional
 
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Shape, Storage, Strides
 
 # TIP: Use `NUMBA_DISABLE_JIT=1 pytest tests/ -m task3_1` to run these tests without JIT.
 
@@ -30,6 +29,7 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Just in time"""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -159,17 +159,18 @@ def tensor_map(
         Tensor map function.
 
     """
-#  /$$      /$$                    
-# | $$$    /$$$                    
-# | $$$$  /$$$$  /$$$$$$   /$$$$$$ 
-# | $$ $$/$$ $$ |____  $$ /$$__  $$
-# | $$  $$$| $$  /$$$$$$$| $$  \ $$
-# | $$\  $ | $$ /$$__  $$| $$  | $$
-# | $$ \/  | $$|  $$$$$$$| $$$$$$$/
-# |__/     |__/ \_______/| $$____/ 
-#                        | $$      
-#                        | $$      
-#                        |__/      
+
+    #  /$$      /$$
+    # | $$$    /$$$
+    # | $$$$  /$$$$  /$$$$$$   /$$$$$$
+    # | $$ $$/$$ $$ |____  $$ /$$__  $$
+    # | $$  $$$| $$  /$$$$$$$| $$  \ $$
+    # | $$\  $ | $$ /$$__  $$| $$  | $$
+    # | $$ \/  | $$|  $$$$$$$| $$$$$$$/
+    # |__/     |__/ \_______/| $$____/
+    #                        | $$
+    #                        | $$
+    #                        |__/
     def _map(
         out: Storage,
         out_shape: Shape,
@@ -185,7 +186,7 @@ def tensor_map(
         else:
             for i in prange(out_size):
                 out_index = np.zeros_like(out_shape)
-                in_index = np.zeros_like(in_shape) 
+                in_index = np.zeros_like(in_shape)
                 to_index(i, out_shape, out_index)
                 broadcast_index(out_index, out_shape, in_shape, in_index)
                 in_position = index_to_position(in_index, in_strides)
@@ -194,6 +195,7 @@ def tensor_map(
                 out[out_position] = fn(in_value)
 
     return njit(_map, parallel=True)  # type: ignore
+
 
 def tensor_zip(
     fn: Callable[[float, float], float],
@@ -217,17 +219,18 @@ def tensor_zip(
         Tensor zip function.
 
     """
-#  /$$$$$$$$ /$$          
-# |_____ $$ |__/          
-#      /$$/  /$$  /$$$$$$ 
-#     /$$/  | $$ /$$__  $$
-#    /$$/   | $$| $$  \ $$
-#   /$$/    | $$| $$  | $$
-#  /$$$$$$$$| $$| $$$$$$$/
-# |________/|__/| $$____/ 
-#               | $$      
-#               | $$      
-#               |__/      
+
+    #  /$$$$$$$$ /$$
+    # |_____ $$ |__/
+    #      /$$/  /$$  /$$$$$$
+    #     /$$/  | $$ /$$__  $$
+    #    /$$/   | $$| $$  \ $$
+    #   /$$/    | $$| $$  | $$
+    #  /$$$$$$$$| $$| $$$$$$$/
+    # |________/|__/| $$____/
+    #               | $$
+    #               | $$
+    #               |__/
     def _zip(
         out: Storage,
         out_shape: Shape,
@@ -239,7 +242,9 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        if list(out_shape) == list(a_shape) == list(b_shape) and list(out_strides) == list(a_strides) == list(b_strides):
+        if list(out_shape) == list(a_shape) == list(b_shape) and list(
+            out_strides
+        ) == list(a_strides) == list(b_strides):
             for i in prange(len(out)):
                 out[i] = fn(a_storage[i], b_storage[i])
         else:
@@ -247,7 +252,7 @@ def tensor_zip(
                 out_index = np.zeros_like(out_shape)
                 a_index = np.zeros_like(a_shape)
                 b_index = np.zeros_like(b_shape)
-                
+
                 to_index(i, out_shape, out_index)
                 broadcast_index(out_index, out_shape, a_shape, a_index)
                 broadcast_index(out_index, out_shape, b_shape, b_index)
@@ -283,14 +288,15 @@ def tensor_reduce(
         Tensor reduce function
 
     """
-#  /$$$$$$$                  /$$                              
-# | $$__  $$                | $$                              
-# | $$  \ $$  /$$$$$$   /$$$$$$$ /$$   /$$  /$$$$$$$  /$$$$$$ 
-# | $$$$$$$/ /$$__  $$ /$$__  $$| $$  | $$ /$$_____/ /$$__  $$
-# | $$__  $$| $$$$$$$$| $$  | $$| $$  | $$| $$      | $$$$$$$$
-# | $$  \ $$| $$_____/| $$  | $$| $$  | $$| $$      | $$_____/
-# | $$  | $$|  $$$$$$$|  $$$$$$$|  $$$$$$/|  $$$$$$$|  $$$$$$$
-# |__/  |__/ \_______/ \_______/ \______/  \_______/ \_______/                            
+
+    #  /$$$$$$$                  /$$
+    # | $$__  $$                | $$
+    # | $$  \ $$  /$$$$$$   /$$$$$$$ /$$   /$$  /$$$$$$$  /$$$$$$
+    # | $$$$$$$/ /$$__  $$ /$$__  $$| $$  | $$ /$$_____/ /$$__  $$
+    # | $$__  $$| $$$$$$$$| $$  | $$| $$  | $$| $$      | $$$$$$$$
+    # | $$  \ $$| $$_____/| $$  | $$| $$  | $$| $$      | $$_____/
+    # | $$  | $$|  $$$$$$$|  $$$$$$$|  $$$$$$/|  $$$$$$$|  $$$$$$$
+    # |__/  |__/ \_______/ \_______/ \______/  \_______/ \_______/
     def _reduce(
         out: Storage,
         out_shape: Shape,
@@ -357,36 +363,29 @@ def _tensor_matrix_multiply(
         None : Fills in `out`
 
     """
-#  /$$      /$$             /$$     /$$      /$$           /$$
-# | $$$    /$$$            | $$    | $$$    /$$$          | $$
-# | $$$$  /$$$$  /$$$$$$  /$$$$$$  | $$$$  /$$$$ /$$   /$$| $$
-# | $$ $$/$$ $$ |____  $$|_  $$_/  | $$ $$/$$ $$| $$  | $$| $$
-# | $$  $$$| $$  /$$$$$$$  | $$    | $$  $$$| $$| $$  | $$| $$
-# | $$\  $ | $$ /$$__  $$  | $$ /$$| $$\  $ | $$| $$  | $$| $$
-# | $$ \/  | $$|  $$$$$$$  |  $$$$/| $$ \/  | $$|  $$$$$$/| $$
-# |__/     |__/ \_______/   \___/  |__/     |__/ \______/ |__/
+    #  /$$      /$$             /$$     /$$      /$$           /$$
+    # | $$$    /$$$            | $$    | $$$    /$$$          | $$
+    # | $$$$  /$$$$  /$$$$$$  /$$$$$$  | $$$$  /$$$$ /$$   /$$| $$
+    # | $$ $$/$$ $$ |____  $$|_  $$_/  | $$ $$/$$ $$| $$  | $$| $$
+    # | $$  $$$| $$  /$$$$$$$  | $$    | $$  $$$| $$| $$  | $$| $$
+    # | $$\  $ | $$ /$$__  $$  | $$ /$$| $$\  $ | $$| $$  | $$| $$
+    # | $$ \/  | $$|  $$$$$$$  |  $$$$/| $$ \/  | $$|  $$$$$$/| $$
+    # |__/     |__/ \_______/   \___/  |__/     |__/ \______/ |__/
     # assert a_shape[-1] == b_shape[-2], "Incompatible shapes for MatMul"
     a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
 
-    for n in prange(out_shape[0]): 
-        for i in range(out_shape[1]): 
-            for j in range(out_shape[2]): 
+    for n in prange(out_shape[0]):
+        for i in range(out_shape[1]):
+            for j in range(out_shape[2]):
                 acc = 0  # Accumulator for the result
                 for k in range(a_shape[2]):  # Shared dimension
-                    a_index = (
-                        n * a_batch_stride
-                        + i * a_strides[1]
-                        + k * a_strides[2]
-                    )
-                    b_index = (
-                        n * b_batch_stride
-                        + k * b_strides[1]
-                        + j * b_strides[2]
-                    )
+                    a_index = n * a_batch_stride + i * a_strides[1] + k * a_strides[2]
+                    b_index = n * b_batch_stride + k * b_strides[1] + j * b_strides[2]
                     acc += a_storage[a_index] * b_storage[b_index]
                 out_index = n * out_strides[0] + i * out_strides[1] + j * out_strides[2]
-                out[out_index] = acc  
+                out[out_index] = acc
+
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)
 assert tensor_matrix_multiply is not None
