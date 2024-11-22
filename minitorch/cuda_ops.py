@@ -484,7 +484,7 @@ def _tensor_matrix_multiply(
     i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
     j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
 
-    assert a_shape[-1] == b_shape[-2], "Inner dimensions must match: %s from A != %s from B" % ( a_shape[-1], b_shape[-2] )
+    assert a_shape[-1] == b_shape[-2], "Inner dimensions must match: " + str(a_shape[-1]) + " from A != " + str(b_shape[-2]) + " from B"
     iter_dim_length = a_shape[-1] #length of the inner dimension of a and b over which we must iterate
     # The local position in the block.
     thread_i = cuda.threadIdx.x
